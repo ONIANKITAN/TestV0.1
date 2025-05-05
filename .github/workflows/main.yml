@@ -1,40 +1,31 @@
-# .github/workflows/supabase-deploy.yml
-name: Supabase CI/CD
+name: Deploy Supabase
 
 on:
   push:
     branches:
       - main  # ou ta branche de prod
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      # Ta clé d'accès (générée via `supabase login`)
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      # Le project-ref (disponible dans Settings > API de Supabase)
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      # 1) Récupère ton code
+      - uses: actions/checkout@v4
 
-      - name: Install Supabase CLI
-        uses: supabase/actions@v1
+      # 2) Installe la CLI Supabase
+      - uses: supabase/setup-cli@v1
         with:
-          args: --version
+          version: latest  # ou un numéro précis, ex. "1.67.4"
 
-      - name: Supabase Login
-        run: supabase login --service-role ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        env:
-          CI: true
+      # 3) Déploie ta base de données (migrations)
+      - run: supabase db push --project-ref $PROJECT_REF
 
-      - name: Link Supabase project
-        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-        env:
-          CI: true
-
-      - name: Push Database Migrations
-        run: supabase db push
-        env:
-          CI: true
-
-      - name: Deploy Edge Functions
-        run: supabase functions deploy --no-verify --local
-        env:
-          CI: true
+      # 4) Déploie toutes tes Edge Functions
+      - run: supabase functions deploy --project-ref $PROJECT_REF
